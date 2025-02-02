@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">     
+        <meta name="description" content="TONATI. El autentico sabor de Chihuahua, built by future engineers for an integrator."/>
+        <meta name="robots" content="index,follow">
+        <title>TONATI-El autentico sabor de Chihuahua.</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="juan.css"> 
+    </head>
+    <body>
+        <div class="container">
+            <!-- Sección Horno -->
+            <div class="section horno">
+                <h2>HORNO</h2>
+                <div class="grid" id="horno"></div>
+            </div>
+
+            <!-- Sección Almacenamiento -->
+            <div class="section almacenamiento">
+                <h2>ALMACENAMIENTO</h2>
+                <div class="almacenamiento-container">
+                    <div class="grid" id="almacenamiento"></div>
+                    <div class="sensor-info">
+                        <h3>Sensor General</h3>
+                        <div class="bar-container">
+                            <div class="bar temp" id="almacenamientoTemp"></div>
+                            <span class="value" id="almacenamientoTempValue">0°C</span>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar hum" id="almacenamientoHum"></div>
+                            <span class="value" id="almacenamientoHumValue">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones de selección -->
+            <div class="buttons">
+                <button class="preset" id="btnCarne">Carne</button>
+                <button class="preset" id="btnVegetales">Vegetales</button>
+                <button class="preset" id="btnFrutas">Frutas</button>
+                <button id="btnDeshidratar" disabled>Empezar a Deshidratar</button>
+            </div>
+        </div>
+
+        <script src="javascript.js"></script>
+    </body>
+</html>

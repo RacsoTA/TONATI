@@ -1,0 +1,61 @@
+.container {
+    display: flex;
+    width: 80%;
+    max-width: 1200px;
+    background: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;}
+
+.figure {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.1);
+    flex: 1;
+    position: relative;}
+
+.content-section {
+    flex: 1;
+    padding: 10px;
+    text-align: left;}
+
+h1 {font-size: 5rem;
+    color: #da0404;
+    font-weight: bold;}
+
+p {font-size: 3rem;
+    color: #555; ;}
+
+img {width: 550px;
+    flex: 1;
+    position: relative;
+    background:no-repeat center center/cover;}
+
+
+.btn{
+    background-color: brown;  
+    color: white;           
+    border: none;           
+    padding: 10px 20px;       
+    font-size: 16px;           
+    cursor: pointer;           
+    border-radius: 20px;      
+    margin-top: 100px;
+    margin-left: 100px;
+}
+
+button:hover {
+    color: black;
+}
+
+.footer {
+    font-size: 0.8rem;
+    color: #777;
+    margin-top: 250px;
+    text-align: right;}
+    
+.logo {
+    font-size: 4rem;
+    color: #8b4f35;}
