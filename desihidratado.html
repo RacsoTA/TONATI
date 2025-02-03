@@ -6,44 +6,38 @@
         <meta name="robots" content="index,follow">
         <title>TONATI-El autentico sabor de Chihuahua.</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="stylesheet" href="juan.css"> 
+        <link rel="stylesheet" href="styledes.css"> 
     </head>
     <body>
         <div class="container">
-            <!-- Sección Horno -->
-            <div class="section horno">
-                <h2>HORNO</h2>
-                <div class="grid" id="horno"></div>
+            <img src="logo.png" alt="Logo" class="logo">
+            
+            <div class="almacen">
+                <h2>Almacén</h2>
+                <span class="estado">Activo</span>
+                <span class="hora">10:00</span>
+                <div class="barra temperatura" data-tipo="temperatura"></div>
+                <div class="barra humedad" data-tipo="humedad"></div>
             </div>
-
-            <!-- Sección Almacenamiento -->
-            <div class="section almacenamiento">
-                <h2>ALMACENAMIENTO</h2>
-                <div class="almacenamiento-container">
-                    <div class="grid" id="almacenamiento"></div>
-                    <div class="sensor-info">
-                        <h3>Sensor General</h3>
-                        <div class="bar-container">
-                            <div class="bar temp" id="almacenamientoTemp"></div>
-                            <span class="value" id="almacenamientoTempValue">0°C</span>
-                        </div>
-                        <div class="bar-container">
-                            <div class="bar hum" id="almacenamientoHum"></div>
-                            <span class="value" id="almacenamientoHumValue">0%</span>
-                        </div>
-                    </div>
+    
+            <div class="horno">
+                <h2>Horno</h2>
+                <div class="charola">
+                    <span>1</span>
+                    <span class="estado">Activo</span>
+                    <span>Carne</span>
+                    <span class="hora">10:00</span>
+                    <div class="barra temperatura" data-tipo="temperatura"></div>
+                    <div class="barra humedad" data-tipo="humedad"></div>
+                    <div class="barra tiempo" data-tipo="tiempo"></div>
+                    <button class="activar">B</button>
                 </div>
             </div>
-
-            <!-- Botones de selección -->
-            <div class="buttons">
-                <button class="preset" id="btnCarne">Carne</button>
-                <button class="preset" id="btnVegetales">Vegetales</button>
-                <button class="preset" id="btnFrutas">Frutas</button>
-                <button id="btnDeshidratar" disabled>Empezar a Deshidratar</button>
-            </div>
+    
+            <button class="emergencia">PARO</button>
         </div>
-
+        
         <script src="javascript.js"></script>
     </body>
-</html>
+    </html>
+    

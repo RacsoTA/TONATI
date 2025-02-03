@@ -5,160 +5,66 @@ body {
 }
 
 .container {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 50px;
-    padding: 20px;
-}
-
-.section {
+    width: 80%;
+    margin: auto;
     background: white;
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    width: 250px;
 }
 
-.horno, .almacenamiento, .buttons {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+.logo {
+    width: 100px;
+    display: block;
+    margin: auto;
 }
 
-.grid {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.label {
-    width: 30px;
-    font-weight: bold;
-}
-
-.bar-container {
-    width: 200px;
-    height: 20px;
-    background: lightgray;
+.almacen, .horno {
+    margin: 20px 0;
+    padding: 10px;
+    border: 1px solid #ddd;
     border-radius: 5px;
-    overflow: hidden;
-    position: relative;
 }
 
-.bar {
-    height: 100%;
-    transition: width 0.5s;
+.barra {
+    width: 100%;
+    height: 20px;
+    border-radius: 5px;
+    margin: 5px 0;
+    background: gray;
 }
 
-.temp {
-    background: linear-gradient(to right, yellow, red);
+.barra.temperatura {
+    background: linear-gradient(to right, lightcoral, red);
 }
 
-.hum {
+.barra.humedad {
     background: linear-gradient(to right, lightblue, blue);
 }
 
-.value {
-    position: absolute;
-    right: 5px;
-    top: 2px;
-    font-size: 14px;
+.barra.tiempo {
+    background: linear-gradient(to right, lightgreen, green);
+}
+
+.estado {
     font-weight: bold;
+    color: green;
+}
+
+button.emergencia {
+    background: red;
     color: white;
-}
-
-.almacenamiento-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.sensor-info {
-    margin-top: 20px;
-}
-
-/* Cajones de almacenamiento */
-.cajon {
-    width: 60px;
-    height: 30px;
-    background: gray;
-    margin: 5px;
-    border-radius: 5px;
-    transition: background 0.5s;
-}
-
-.cajon.activo {
-    background: green;
-}
-
-/* Cajones del horno */
-.cajon.ocupado {
-    background: red; /* Indica que el cajón está ocupado */
-}
-
-.cajon {
-    background: lightgray; /* Por defecto, los cajones están libres */
-}
-
-/* Secciones del horno */
-.horno .cajones {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
-    margin-bottom: 20px;
-}
-
-.horno .temperatura, .humedad {
-    margin-top: 20px;
-    width: 100%;
-}
-
-.horno .temperatura, .almacenamiento .sensor-info, .almacenamiento .cajon, .humedad .sensor-info {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    align-items: center;
-}
-
-/* Botones de presets */
-.buttons {
-    margin-top: 20px;
-}
-
-.preset {
-    padding: 10px 20px;
-    font-size: 16px;
+    padding: 10px;
     border: none;
     cursor: pointer;
+    font-size: 18px;
     border-radius: 5px;
-    margin: 5px;
-    background-color: black;
-    color: white;
 }
 
-.preset.selected {
-    background-color: brown;
-}
-
-#btnDeshidratar {
-    margin-top: 20px;
-    padding: 10px 20px;
-    background: #4CAF50;
+button.activar {
+    background: #333;
     color: white;
     border: none;
+    padding: 5px;
     cursor: pointer;
-    border-radius: 5px;
-}
-
-#btnDeshidratar:disabled {
-    background: #ccc;
-    cursor: not-allowed;
 }
