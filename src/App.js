@@ -20,7 +20,7 @@ function App() {
       estado: false,
       horaInicio: "11:00",
       horaPrediccion: "13:00",
-      alimento: "Pollo",
+      alimento: "Carne",
     },
     {
       id: 3,
@@ -29,7 +29,7 @@ function App() {
       estado: true,
       horaInicio: "09:00",
       horaPrediccion: "11:00",
-      alimento: "Pescado",
+      alimento: "Manzana",
     },
     {
       id: 4,
@@ -38,7 +38,7 @@ function App() {
       estado: false,
       horaInicio: "08:00",
       horaPrediccion: "10:00",
-      alimento: "Verduras",
+      alimento: "Tomate",
     },
     {
       id: 5,
@@ -47,7 +47,7 @@ function App() {
       estado: true,
       horaInicio: "07:00",
       horaPrediccion: "09:00",
-      alimento: "Pan",
+      alimento: "Carne",
     },
     {
       id: 6,
@@ -56,7 +56,7 @@ function App() {
       estado: false,
       horaInicio: "06:00",
       horaPrediccion: "08:00",
-      alimento: "Pizza",
+      alimento: "Carne",
     },
     {
       id: 7,
@@ -65,7 +65,7 @@ function App() {
       estado: true,
       horaInicio: "05:00",
       horaPrediccion: "07:00",
-      alimento: "Pastel",
+      alimento: "Manzana",
     },
     {
       id: 8,
@@ -74,7 +74,7 @@ function App() {
       estado: false,
       horaInicio: "04:00",
       horaPrediccion: "06:00",
-      alimento: "Galletas",
+      alimento: "Tomate",
     },
     {
       id: 9,
@@ -83,7 +83,7 @@ function App() {
       estado: true,
       horaInicio: "03:00",
       horaPrediccion: "05:00",
-      alimento: "Carne",
+      alimento: "Tomate",
     },
     {
       id: 10,
