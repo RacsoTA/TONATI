@@ -6,7 +6,7 @@ function App() {
   const initialHornos = [
     {
       id: 1,
-      temperatura: 200,
+      temperatura: 80,
       humedad: 30,
       estado: true,
       horaInicio: "10:00",
@@ -15,7 +15,7 @@ function App() {
     },
     {
       id: 2,
-      temperatura: 180,
+      temperatura: 90,
       humedad: 40,
       estado: false,
       horaInicio: "11:00",
@@ -24,7 +24,7 @@ function App() {
     },
     {
       id: 3,
-      temperatura: 220,
+      temperatura: 20,
       humedad: 35,
       estado: true,
       horaInicio: "09:00",
@@ -33,7 +33,7 @@ function App() {
     },
     {
       id: 4,
-      temperatura: 190,
+      temperatura: 40,
       humedad: 45,
       estado: false,
       horaInicio: "08:00",
@@ -42,7 +42,7 @@ function App() {
     },
     {
       id: 5,
-      temperatura: 210,
+      temperatura: 50,
       humedad: 50,
       estado: true,
       horaInicio: "07:00",
@@ -51,7 +51,7 @@ function App() {
     },
     {
       id: 6,
-      temperatura: 170,
+      temperatura: 70,
       humedad: 25,
       estado: false,
       horaInicio: "06:00",
@@ -60,7 +60,7 @@ function App() {
     },
     {
       id: 7,
-      temperatura: 230,
+      temperatura: 30,
       humedad: 55,
       estado: true,
       horaInicio: "05:00",
@@ -69,7 +69,7 @@ function App() {
     },
     {
       id: 8,
-      temperatura: 160,
+      temperatura: 60,
       humedad: 20,
       estado: false,
       horaInicio: "04:00",
@@ -78,7 +78,7 @@ function App() {
     },
     {
       id: 9,
-      temperatura: 240,
+      temperatura: 40,
       humedad: 60,
       estado: true,
       horaInicio: "03:00",
@@ -87,7 +87,7 @@ function App() {
     },
     {
       id: 10,
-      temperatura: 150,
+      temperatura: 50,
       humedad: 15,
       estado: false,
       horaInicio: "02:00",
