@@ -42,7 +42,7 @@ function Horno({
     <div
       className={`horno border border-gray-700 rounded-lg p-4 text-left bg-gray-800 shadow-lg ${widthClass} flex flex-col gap-4`}
     >
-      <h2 className="text-xl font-semibold">Horno {id}</h2>
+      <h2 className="text-xl font-semibold">BANDEJA # {id}</h2>
       <p>Tipo de alimento: {alimento}</p>
       <div className="flex flex-row w-full gap-8">
         <div className="flex flex-col w-1/2 gap-6">

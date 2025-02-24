@@ -15,16 +15,16 @@ function App() {
     },
     {
       id: 2,
-      temperatura: 90,
+      temperatura: 70,
       humedad: 40,
-      estado: false,
+      estado: true,
       horaInicio: "11:00",
       horaPrediccion: "13:00",
       alimento: "Carne",
     },
     {
       id: 3,
-      temperatura: 20,
+      temperatura: 90,
       humedad: 35,
       estado: true,
       horaInicio: "09:00",
@@ -33,12 +33,12 @@ function App() {
     },
     {
       id: 4,
-      temperatura: 40,
-      humedad: 45,
-      estado: false,
-      horaInicio: "08:00",
-      horaPrediccion: "10:00",
-      alimento: "Tomate",
+      temperatura: 60,
+      humedad: 15,
+      estado: true,
+      horaInicio: "02:00",
+      horaPrediccion: "04:00",
+      alimento: "Carne",
     },
     {
       id: 5,
@@ -53,7 +53,7 @@ function App() {
       id: 6,
       temperatura: 70,
       humedad: 25,
-      estado: false,
+      estado: true,
       horaInicio: "06:00",
       horaPrediccion: "08:00",
       alimento: "Carne",
@@ -71,7 +71,7 @@ function App() {
       id: 8,
       temperatura: 60,
       humedad: 20,
-      estado: false,
+      estado: true,
       horaInicio: "04:00",
       horaPrediccion: "06:00",
       alimento: "Tomate",
@@ -89,7 +89,7 @@ function App() {
       id: 10,
       temperatura: 50,
       humedad: 15,
-      estado: false,
+      estado: true,
       horaInicio: "02:00",
       horaPrediccion: "04:00",
       alimento: "Carne",
@@ -104,17 +104,20 @@ function App() {
     hornos.reduce((acc, horno) => acc + horno.humedad, 0) / hornos.length;
 
   const detenerTodosLosHornos = () => {
+    console.log("Detener todos los hornos");
+    console.log("Estado antes:", hornos);
     const hornosActualizados = hornos.map((horno) => ({
       ...horno,
       estado: false,
     }));
     setHornos(hornosActualizados);
+    console.log("Estado después:", hornosActualizados);
   };
 
   return (
     <div className="App text-center bg-gray-900 min-h-screen text-white py-20">
       <header className="App-header bg-gray-800 p-4 text-white shadow-lg">
-        <h1 className="text-3xl font-bold">Dashboard de Hornos</h1>
+        <h1 className="text-3xl font-bold">Dashboard de Bandejas.</h1>
       </header>
       <Almacen
         temperaturaPromedio={temperaturaPromedio}
