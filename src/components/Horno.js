@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 
 function Horno({
   id,
@@ -47,21 +48,21 @@ function Horno({
       <div className="flex flex-row w-full gap-8">
         <div className="flex flex-col w-1/2 gap-6">
           <p>Temperatura: {temperatura}°C</p>
-          <div className="w-full bg-gray-700 rounded-full h-4 mb-4">
-            <div
-              className="bg-red-500 h-4 rounded-full"
-              style={{ width: `${temperatura}%` }}
-            ></div>
-          </div>
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${temperatura}%` }}
+            transition={{ duration: 1 }}
+            className="bg-red-500 h-4 rounded"
+          ></motion.div>
         </div>
         <div className="flex flex-col w-1/2 gap-6">
           <p>Humedad: {humedad}%</p>
-          <div className="w-full bg-gray-700 rounded-full h-4 mb-4">
-            <div
-              className="bg-blue-500 h-4 rounded-full"
-              style={{ width: `${humedad}%` }}
-            ></div>
-          </div>
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${humedad}%` }}
+            transition={{ duration: 1 }}
+            className="bg-blue-500 h-4 rounded"
+          ></motion.div>
         </div>
       </div>
       <div className="flex flex-row gap-4 items-center">

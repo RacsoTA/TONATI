@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Horno from "./components/Horno";
 import Almacen from "./components/Almacen";
 
@@ -6,7 +6,7 @@ function App() {
   const initialHornos = [
     {
       id: 1,
-      temperatura: 80,
+      temperatura: Math.floor(Math.random() * 101),
       humedad: 30,
       estado: true,
       horaInicio: "10:00",
@@ -98,6 +98,20 @@ function App() {
 
   const [hornos, setHornos] = useState(initialHornos);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHornos((prevHornos) =>
+        prevHornos.map((horno) => ({
+          ...horno,
+          temperatura: Math.floor(Math.random() * 101),
+          humedad: Math.floor(Math.random() * 101),
+        }))
+      );
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const temperaturaPromedio =
     hornos.reduce((acc, horno) => acc + horno.temperatura, 0) / hornos.length;
   const humedadPromedio =
@@ -117,7 +131,7 @@ function App() {
   return (
     <div className="App text-center bg-gray-900 min-h-screen text-white py-20">
       <header className="App-header bg-gray-800 p-4 text-white shadow-lg">
-        <h1 className="text-3xl font-bold">Dashboard de Bandejas.</h1>
+        <h1 className="text-3xl font-bold">Bandejas</h1>
       </header>
       <Almacen
         temperaturaPromedio={temperaturaPromedio}
@@ -137,5 +151,4 @@ function App() {
     </div>
   );
 }
-
 export default App;
