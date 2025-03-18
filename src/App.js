@@ -1,154 +1,151 @@
 import React, { useState, useEffect } from "react";
-import Horno from "./components/Horno";
-import Almacen from "./components/Almacen";
+import api from "./api/axios";
+import BandejasDisponibles from "./components/BandejasDisponibles";
+import BandejaPendiente from "./components/BandejaPendiente";
+import BandejasActivas from "./components/BandejasActivas";
 
 function App() {
-  const initialHornos = [
-    {
-      id: 1,
-      temperatura: Math.floor(Math.random() * 101),
-      humedad: 30,
-      estado: true,
-      horaInicio: "10:00",
-      horaPrediccion: "12:00",
-      alimento: "Carne",
-    },
-    {
-      id: 2,
-      temperatura: 70,
-      humedad: 40,
-      estado: true,
-      horaInicio: "11:00",
-      horaPrediccion: "13:00",
-      alimento: "Carne",
-    },
-    {
-      id: 3,
-      temperatura: 90,
-      humedad: 35,
-      estado: true,
-      horaInicio: "09:00",
-      horaPrediccion: "11:00",
-      alimento: "Manzana",
-    },
-    {
-      id: 4,
-      temperatura: 60,
-      humedad: 15,
-      estado: true,
-      horaInicio: "02:00",
-      horaPrediccion: "04:00",
-      alimento: "Carne",
-    },
-    {
-      id: 5,
-      temperatura: 50,
-      humedad: 50,
-      estado: true,
-      horaInicio: "07:00",
-      horaPrediccion: "09:00",
-      alimento: "Carne",
-    },
-    {
-      id: 6,
-      temperatura: 70,
-      humedad: 25,
-      estado: true,
-      horaInicio: "06:00",
-      horaPrediccion: "08:00",
-      alimento: "Carne",
-    },
-    {
-      id: 7,
-      temperatura: 30,
-      humedad: 55,
-      estado: true,
-      horaInicio: "05:00",
-      horaPrediccion: "07:00",
-      alimento: "Manzana",
-    },
-    {
-      id: 8,
-      temperatura: 60,
-      humedad: 20,
-      estado: true,
-      horaInicio: "04:00",
-      horaPrediccion: "06:00",
-      alimento: "Tomate",
-    },
-    {
-      id: 9,
-      temperatura: 40,
-      humedad: 60,
-      estado: true,
-      horaInicio: "03:00",
-      horaPrediccion: "05:00",
-      alimento: "Tomate",
-    },
-    {
-      id: 10,
-      temperatura: 50,
-      humedad: 15,
-      estado: true,
-      horaInicio: "02:00",
-      horaPrediccion: "04:00",
-      alimento: "Carne",
-    },
-  ];
+  const [bandejas, setBandejas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedBandeja, setSelectedBandeja] = useState(null);
+  const [step, setStep] = useState("disponibles"); // disponibles, pendiente, activas
 
-  const [hornos, setHornos] = useState(initialHornos);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setHornos((prevHornos) =>
-        prevHornos.map((horno) => ({
-          ...horno,
-          temperatura: Math.floor(Math.random() * 101),
-          humedad: Math.floor(Math.random() * 101),
-        }))
+  const fetchBandejas = async () => {
+    try {
+      const response = await api.get("/bandejas/");
+      setBandejas(
+        response.data.filter((bandeja) => bandeja.estatus === "disponible")
       );
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const temperaturaPromedio =
-    hornos.reduce((acc, horno) => acc + horno.temperatura, 0) / hornos.length;
-  const humedadPromedio =
-    hornos.reduce((acc, horno) => acc + horno.humedad, 0) / hornos.length;
-
-  const detenerTodosLosHornos = () => {
-    console.log("Detener todos los hornos");
-    console.log("Estado antes:", hornos);
-    const hornosActualizados = hornos.map((horno) => ({
-      ...horno,
-      estado: false,
-    }));
-    setHornos(hornosActualizados);
-    console.log("Estado después:", hornosActualizados);
+      setLoading(false);
+    } catch (err) {
+      setError("Error al cargar las bandejas");
+      setLoading(false);
+    }
   };
 
-  return (
-    <div className="App text-center bg-gray-900 min-h-screen text-white py-20">
-      <header className="App-header bg-gray-800 p-4 text-white shadow-lg">
-        <h1 className="text-3xl font-bold">Bandejas</h1>
-      </header>
-      <Almacen
-        temperaturaPromedio={temperaturaPromedio}
-        humedadPromedio={humedadPromedio}
-      />
-      <div className="dashboard flex flex-col flex-wrap justify-center gap-4 px-14 py-5">
-        {hornos.map((horno) => (
-          <Horno key={horno.id} {...horno} totalHornos={hornos.length} />
-        ))}
+  const handleBandejaSelected = (id_bandeja) => {
+    setSelectedBandeja(id_bandeja);
+    setStep("pendiente");
+  };
+
+  const handleBandejaActivated = () => {
+    setStep("activas");
+    setSelectedBandeja(null);
+  };
+
+  const handleStopAllBandejas = async () => {
+    try {
+      setLoading(true);
+      // Get all bandejas first
+      const response = await api.get("/bandejas/");
+      const allBandejas = response.data;
+
+      // Update each bandeja
+      const updatePromises = allBandejas.map((bandeja) =>
+        api.put(`/bandejas/update/${bandeja.id}`, {
+          motor: 0,
+          resistencia: 0,
+          estatus: "disponible",
+          ultimaActualizacion: new Date(),
+        })
+      );
+
+      await Promise.all(updatePromises);
+
+      // Refresh the view
+      await fetchBandejas();
+      setStep("disponibles");
+    } catch (error) {
+      console.error("Error al detener las bandejas:", error);
+      alert("Error al detener las bandejas");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBandejas();
+  }, []);
+
+  if (loading)
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-xl">Cargando bandejas...</div>
       </div>
-      <button
-        className="mt-4 px-6 py-3 bg-red-600 text-white rounded hover:bg-red-800"
-        onClick={detenerTodosLosHornos}
-      >
-        Detener Todos los Hornos
-      </button>
+    );
+
+  if (error)
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-xl text-red-500">{error}</div>
+      </div>
+    );
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white p-8">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-center">Sistema de Bandejas</h1>
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={handleStopAllBandejas}
+            className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors font-semibold flex items-center gap-2"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 002 0V8a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v4a1 1 0 002 0V8a1 1 0 00-1-1z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Detener Todas las Bandejas
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto">
+        {step === "disponibles" && (
+          <>
+            <h2 className="text-2xl font-semibold mb-6">
+              Bandejas Disponibles
+            </h2>
+            <BandejasDisponibles
+              bandejas={bandejas}
+              onBandejaSelected={handleBandejaSelected}
+              refreshBandejas={fetchBandejas}
+            />
+          </>
+        )}
+
+        {step === "pendiente" && selectedBandeja && (
+          <BandejaPendiente
+            bandeja_id={selectedBandeja}
+            onBandejaActivated={handleBandejaActivated}
+            refreshBandejas={fetchBandejas}
+          />
+        )}
+
+        {step === "activas" && (
+          <>
+            <div className="mb-6">
+              <button
+                onClick={() => setStep("disponibles")}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
+              >
+                Ver Bandejas Disponibles
+              </button>
+            </div>
+            <BandejasActivas />
+          </>
+        )}
+      </main>
     </div>
   );
 }
+
 export default App;
