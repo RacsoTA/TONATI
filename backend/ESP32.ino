@@ -9,13 +9,10 @@ const char* password = "M3zKhzVRq2";
 bool waitingForSensorData = false;
 unsigned long sensorDataTimeout = 0;
 
-
 // API endpoints
 const char* BASE_URL = "http://192.168.1.183:3000";
-const char* ACTIVAS_ENDPOINT = "/api/bandejas/activas";
-const char* ACTIVAS12_ENDPOINT = "/api/bandejas/activas12horas";
-const char* UPDATE_ENDPOINT = "/api/bandejas/updateFromESP32";
-const char* FINALIZAR_ENDPOINT = "/api/bandejas/finalizar";
+const char* BANDEJAS_STATUS_ENDPOINT = "/bandejas/status"; // Change to your new endpoint
+const char* UPDATE_ENDPOINT = "/bandejas/updateFromESP32";
 
 // UART with Arduino
 #define RX1_PIN 16
@@ -23,10 +20,14 @@ const char* FINALIZAR_ENDPOINT = "/api/bandejas/finalizar";
 
 // Timing
 unsigned long previousMillis = 0;
-const long interval = 5000;  // 5 seconds
+const long interval = 5000;  // Increased to 5 seconds
+const long COMMAND_TIMEOUT = 3000;  // 3 seconds timeout for command responses
+const long SENSOR_READ_TIMEOUT = 4000;  // 4 seconds timeout for sensor data
+const long ACK_TIMEOUT = 1000;  // 1 second timeout for ACK
 
 // State tracking
-bool bandejasActivas[10] = {false};
+bool commandInProgress = false;
+unsigned long commandStartTime = 0;
 
 void setup() {
     Serial.begin(115200);
@@ -48,146 +49,208 @@ void setup() {
 void loop() {
     unsigned long currentMillis = millis();
     
-    if (currentMillis - previousMillis >= interval) {
+    if (!commandInProgress && currentMillis - previousMillis >= interval) {
         previousMillis = currentMillis;
         
         if (WiFi.status() == WL_CONNECTED) {
             Serial.println("\n--- Starting periodic check ---");
-            checkActiveBandejas();
-            check12HourBandejas();
-            
-            // Check if we're still waiting for a previous response
-            if (waitingForSensorData) {
-                if (currentMillis > sensorDataTimeout) {
-                    Serial.println("Timeout waiting for sensor data");
-                    waitingForSensorData = false;
-                    requestAndUpdateStates(); // Try again
-                }
-            } else {
-                requestAndUpdateStates();
-            }
-            
-            Serial.println("--- Periodic check complete ---\n");
+            commandInProgress = true;
+            commandStartTime = currentMillis;
+            checkBandejas();  // Check bandeja status and send commands to Arduino
         } else {
             Serial.println("WiFi connection lost. Attempting to reconnect...");
             WiFi.begin(ssid, password);
         }
     }
 
-    // Check for Arduino responses
+    // Handle command timeout
+    if (commandInProgress && currentMillis - commandStartTime > COMMAND_TIMEOUT) {
+        Serial.println("Command timeout - resetting state");
+        commandInProgress = false;
+        waitingForSensorData = false;
+    }
+
     processArduinoResponse();
 }
 
-
-void checkActiveBandejas() {
-    Serial.println("Checking active bandejas...");
+void checkBandejas() {
+    Serial.println("Checking bandejas status from database...");
     HTTPClient http;
-    http.begin(String(BASE_URL) + ACTIVAS_ENDPOINT);
+    http.begin(String(BASE_URL) + BANDEJAS_STATUS_ENDPOINT);
     
     int httpCode = http.GET();
-    Serial.print("Active bandejas HTTP response: ");
+    Serial.print("Bandejas check HTTP response: ");
     Serial.println(httpCode);
     
     if (httpCode == HTTP_CODE_OK) {
         String payload = http.getString();
         Serial.println("Received payload: " + payload);
         
-        DynamicJsonDocument doc(2048);
-        deserializeJson(doc, payload);
+        DynamicJsonDocument doc(4096);  // Increased size for all bandejas
+        DeserializationError error = deserializeJson(doc, payload);
         
-        // Reset current active state
-        bool newBandejasActivas[10] = {false};
+        if (error) {
+            Serial.print("deserializeJson() failed: ");
+            Serial.println(error.c_str());
+            http.end();
+            return;
+        }
         
-        // Process active bandejas
-        JsonArray bandejas = doc["bandejas"];
-        for (JsonVariant bandeja : bandejas) {
-            int id_bandeja = bandeja["id_bandeja"].as<int>();
-            if (id_bandeja >= 0 && id_bandeja < 10) {
-                newBandejasActivas[id_bandeja] = true;
-                // If this is a newly active bandeja, send command to Arduino
-                if (!bandejasActivas[id_bandeja]) {
-                    Serial.println("Sending activation command for bandeja " + String(id_bandeja));
-                    Serial2.println("ON," + String(id_bandeja));
+        // Create arrays to store bandeja IDs for each category
+        int maxBandejas = 12; // Maximum number of bandejas (0-11)
+        int bandejasPrendidas[maxBandejas];
+        int bandejasApagadas[maxBandejas];
+        int prendidasSinResistencia[maxBandejas];
+        int countPrendidas = 0;
+        int countApagadas = 0; 
+        int countSinResistencia = 0;
+        
+        // Initialize all arrays with -1 (invalid bandeja ID)
+        for (int i = 0; i < maxBandejas; i++) {
+            bandejasPrendidas[i] = -1;
+            bandejasApagadas[i] = -1;
+            prendidasSinResistencia[i] = -1;
+        }
+        
+        // Parse bandejas_prendidas array
+        if (doc.containsKey("bandejas_prendidas")) {
+            JsonArray prendidas = doc["bandejas_prendidas"];
+            for (JsonVariant v : prendidas) {
+                if (countPrendidas < maxBandejas) {
+                    // Handle both numeric and string values
+                    if (v.is<int>()) {
+                        bandejasPrendidas[countPrendidas++] = v.as<int>();
+                    } else if (v.is<const char*>()) {
+                        bandejasPrendidas[countPrendidas++] = atoi(v.as<const char*>());
+                    }
                 }
             }
         }
         
-        // Update stored state and log changes
-        for (int i = 0; i < 10; i++) {
-            if (bandejasActivas[i] != newBandejasActivas[i]) {
-                Serial.println("Bandeja " + String(i) + " state changed: " + 
-                             String(bandejasActivas[i]) + " -> " + String(newBandejasActivas[i]));
+        // Parse bandejas_apagadas array
+        if (doc.containsKey("bandejas_apagadas")) {
+            JsonArray apagadas = doc["bandejas_apagadas"];
+            for (JsonVariant v : apagadas) {
+                if (countApagadas < maxBandejas) {
+                    // Handle both numeric and string values
+                    if (v.is<int>()) {
+                        bandejasApagadas[countApagadas++] = v.as<int>();
+                    } else if (v.is<const char*>()) {
+                        bandejasApagadas[countApagadas++] = atoi(v.as<const char*>());
+                    }
+                }
             }
         }
-        memcpy(bandejasActivas, newBandejasActivas, sizeof(bandejasActivas));
-    }
-    
-    http.end();
-}
-
-void check12HourBandejas() {
-    Serial.println("Checking for bandejas active > 12 hours...");
-    HTTPClient http;
-    http.begin(String(BASE_URL) + ACTIVAS12_ENDPOINT);
-    
-    int httpCode = http.GET();
-    Serial.print("12-hour check HTTP response: ");
-    Serial.println(httpCode);
-    
-    if (httpCode == HTTP_CODE_OK) {
-        String payload = http.getString();
-        Serial.println("Received payload: " + payload);
         
-        DynamicJsonDocument doc(1024);
-        deserializeJson(doc, payload);
-        
-        if (!doc["bandeja"].isNull()) {
-            int id_bandeja = doc["id_bandeja"].as<int>();
-            if (id_bandeja >= 0 && id_bandeja < 10) {
-                Serial.println("Found bandeja " + String(id_bandeja) + " active > 12 hours. Stopping...");
-                Serial2.println("OFF," + String(id_bandeja));
-                finalizarBandeja(id_bandeja);
+        // Parse prendida_sinResistencia array
+        if (doc.containsKey("prendida_sinResistencia")) {
+            JsonArray sinResistencia = doc["prendida_sinResistencia"];
+            for (JsonVariant v : sinResistencia) {
+                if (countSinResistencia < maxBandejas) {
+                    // Handle both numeric and string values
+                    if (v.is<int>()) {
+                        prendidasSinResistencia[countSinResistencia++] = v.as<int>();
+                    } else if (v.is<const char*>()) {
+                        prendidasSinResistencia[countSinResistencia++] = atoi(v.as<const char*>());
+                    }
+                }
             }
+        }
+        
+        // Log parsed data
+        Serial.println("Parsed bandeja status:");
+        Serial.print("bandejas_prendidas: ");
+        for (int i = 0; i < countPrendidas; i++) {
+            Serial.print(bandejasPrendidas[i]);
+            Serial.print(", ");
+        }
+        Serial.println();
+        
+        Serial.print("bandejas_apagadas: ");
+        for (int i = 0; i < countApagadas; i++) {
+            Serial.print(bandejasApagadas[i]);
+            Serial.print(", ");
+        }
+        Serial.println();
+        
+        Serial.print("prendida_sinResistencia: ");
+        for (int i = 0; i < countSinResistencia; i++) {
+            Serial.print(prendidasSinResistencia[i]);
+            Serial.print(", ");
+        }
+        Serial.println();
+        
+        // Send commands to Arduino based on bandeja status
+        sendCommandsToArduino(bandejasPrendidas, countPrendidas, 
+                             bandejasApagadas, countApagadas,
+                             prendidasSinResistencia, countSinResistencia);
+        
+    } else {
+        Serial.println("Error getting bandejas status: " + String(httpCode));
+        if (httpCode > 0) {
+            String errorPayload = http.getString();
+            Serial.println("Error response: " + errorPayload);
         }
     }
     
     http.end();
 }
 
-void finalizarBandeja(int id_bandeja) {
-    Serial.println("Finalizing bandeja " + String(id_bandeja));
-    HTTPClient http;
-    http.begin(String(BASE_URL) + FINALIZAR_ENDPOINT);
-    http.addHeader("Content-Type", "application/json");
+void sendCommandsToArduino(int* prendidas, int countPrendidas, 
+                          int* apagadas, int countApagadas,
+                          int* sinResistencia, int countSinResistencia) {
+    // Construimos un string con todos los comandos para enviar al arduino
+    // El formato será: "UPDATE,OFF:<list>,FULL:<list>,MONLY:<list>"
+    // Donde cada lista es separada por comas y contiene los IDs de las bandejas
     
-    String requestBody = "{\"id_bandeja\":" + String(id_bandeja) + "}";
-    Serial.println("Sending request: " + requestBody);
+    String command = "UPDATE,";
     
-    int httpCode = http.PUT(requestBody);
-    Serial.print("Finalize bandeja HTTP response: ");
-    Serial.println(httpCode);
-    
-    if (httpCode == HTTP_CODE_OK) {
-        String response = http.getString();
-        Serial.println("Server response: " + response);
+    // Add bandejas_apagadas (all OFF)
+    command += "OFF:";
+    for (int i = 0; i < countApagadas; i++) {
+        if (apagadas[i] != -1) {
+            command += String(apagadas[i]);
+            if (i < countApagadas - 1) command += ",";
+        }
     }
     
-    http.end();
+    // Add bandejas_prendidas (MOTOR + RESISTENCIA)
+    command += ";FULL:";
+    for (int i = 0; i < countPrendidas; i++) {
+        if (prendidas[i] != -1) {
+            command += String(prendidas[i]);
+            if (i < countPrendidas - 1) command += ",";
+        }
+    }
+    
+    // Add prendida_sinResistencia (MOTOR only)
+    command += ";MONLY:";
+    for (int i = 0; i < countSinResistencia; i++) {
+        if (sinResistencia[i] != -1) {
+            command += String(sinResistencia[i]);
+            if (i < countSinResistencia - 1) command += ",";
+        }
+    }
+    
+    // Send command to Arduino
+    Serial.println("Sending command to Arduino: " + command);
+    Serial2.println(command);
 }
 
-void requestAndUpdateStates() {
+void requestSensorData() {
     Serial.println("Requesting sensor data from Arduino...");
     Serial2.flush(); // Make sure previous transmissions are complete
+    delay(100);  // Short delay to ensure Arduino is ready
     Serial2.println("SEND");
     
     // Wait for acknowledgment with a timeout
     unsigned long startTime = millis();
     bool acknowledged = false;
     
-    while (millis() - startTime < 2000) { // Increased timeout to 2 seconds for ACK
+    while (millis() - startTime < ACK_TIMEOUT) {
         if (Serial2.available()) {
             String response = Serial2.readStringUntil('\n');
-            response.trim(); // Remove any whitespace or newline characters
+            response.trim();
             
             Serial.println("Received response: '" + response + "'");
             
@@ -195,7 +258,7 @@ void requestAndUpdateStates() {
                 acknowledged = true;
                 Serial.println("Arduino acknowledged data request");
                 waitingForSensorData = true;
-                sensorDataTimeout = millis() + 5000; // 5-second timeout for data
+                sensorDataTimeout = millis() + SENSOR_READ_TIMEOUT;
                 break;
             }
         }
@@ -205,33 +268,38 @@ void requestAndUpdateStates() {
     if (!acknowledged) {
         Serial.println("No acknowledgment from Arduino");
         waitingForSensorData = false;
+        commandInProgress = false;
     }
 }
 
 void processArduinoResponse() {
     if (Serial2.available()) {
         String response = Serial2.readStringUntil('\n');
+        response.trim();
         
-        // Ignore ACK messages as they're handled in requestAndUpdateStates
         if (response == "ACK") {
             return;
         }
         
-        // Check if it's a command confirmation
         if (response.startsWith("OK,") || response.startsWith("ERROR,")) {
             Serial.println("Arduino command response: " + response);
+            // After receiving command confirmation, request sensor data
+            if (response == "OK,UPDATE") {
+                delay(100);  // Give Arduino time to prepare
+                requestSensorData();
+            }
             return;
         }
         
-        // Process sensor data
         if (response.length() > 0) {
             Serial.println("Received sensor data from Arduino: " + response);
             updateBackend(response);
-            waitingForSensorData = false; // Reset the waiting flag
+            waitingForSensorData = false;
+            commandInProgress = false;
+            Serial.println("--- Periodic check complete ---\n");
         }
     }
 }
-
 
 void updateBackend(String sensorData) {
     Serial.println("Updating backend with sensor data...");
@@ -239,25 +307,19 @@ void updateBackend(String sensorData) {
     http.begin(String(BASE_URL) + UPDATE_ENDPOINT);
     http.addHeader("Content-Type", "application/json");
     
-    // Sanitize the sensor data by removing or escaping control characters
+    // Sanitize the sensor data
     String sanitizedData = "";
     for (int i = 0; i < sensorData.length(); i++) {
         char c = sensorData.charAt(i);
-        // Skip control characters (ASCII 0-31 except tabs and newlines which we'll escape)
+        // Skip control characters except tabs and newlines
         if (c < 32) {
-            if (c == '\t') {
-                sanitizedData += "\\t"; // Escape tab
-            } else if (c == '\n') {
-                sanitizedData += "\\n"; // Escape newline
-            } else if (c == '\r') {
-                sanitizedData += "\\r"; // Escape carriage return
-            }
+            if (c == '\t') sanitizedData += "\\t";
+            else if (c == '\n') sanitizedData += "\\n";
+            else if (c == '\r') sanitizedData += "\\r";
             // Skip other control characters
         } else {
-            // For backslash and double quotes, add an escape character
-            if (c == '\\' || c == '"') {
-                sanitizedData += '\\';
-            }
+            // Escape backslash and double quotes
+            if (c == '\\' || c == '"') sanitizedData += '\\';
             sanitizedData += c;
         }
     }

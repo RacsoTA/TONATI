@@ -2,8 +2,10 @@
 
 #define NUM_SENSORES 10
 #define DHT_TYPE DHT11
-#define MAX_TEMP 60.0
-#define MIN_TEMP 40.0
+
+// Estas variables ya no se usan, se pueden eliminar
+// float MAX_TEMP = 60.0;
+// float MIN_TEMP = 40.0;
 
 int DHT_PINS[NUM_SENSORES] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 int MOTOR_PINS[NUM_SENSORES] = {22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
@@ -41,125 +43,126 @@ void setup() {
     Serial.println("Initialization complete!");
 }
 
+void processBandejaList(String list, bool motorOn, bool resistenciaOn) {
+    while (list.length() > 0) {
+        int commaIndex = list.indexOf(',');
+        String bandejaStr;
+        
+        if (commaIndex == -1) {
+            bandejaStr = list;
+            list = "";
+        } else {
+            bandejaStr = list.substring(0, commaIndex);
+            list = list.substring(commaIndex + 1);
+        }
+        
+        int bandeja = bandejaStr.toInt();
+        if (bandeja >= 0 && bandeja < NUM_SENSORES) {
+            digitalWrite(MOTOR_PINS[bandeja], motorOn ? HIGH : LOW);
+            digitalWrite(RESISTENCIA_PINS[bandeja], resistenciaOn ? HIGH : LOW);
+            bandeja_activa[bandeja] = motorOn || resistenciaOn;
+            
+            Serial.println("Bandeja " + String(bandeja) + 
+                         ": Motor=" + String(motorOn ? "ON" : "OFF") + 
+                         ", Resistencia=" + String(resistenciaOn ? "ON" : "OFF"));
+        }
+    }
+}
+
 void procesarComando(String comando) {
     Serial.println("Processing command: " + comando);
     
-    // Check if the command contains a comma
-    if (comando.indexOf(',') == -1) {
-        Serial.println("Error: Invalid command format (no comma found)");
+    if (comando.startsWith("UPDATE,")) {
+        // Remove "UPDATE," prefix
+        comando = comando.substring(7);
+        
+        // Split into sections (OFF:x,y,z;FULL:a,b,c;MONLY:d,e,f)
+        while (comando.length() > 0) {
+            int endIndex = comando.indexOf(';');
+            String section;
+            
+            if (endIndex == -1) {
+                section = comando;
+                comando = "";
+            } else {
+                section = comando.substring(0, endIndex);
+                comando = comando.substring(endIndex + 1);
+            }
+            
+            // Process each section
+            if (section.startsWith("OFF:")) {
+                processBandejaList(section.substring(4), false, false);
+            }
+            else if (section.startsWith("FULL:")) {
+                processBandejaList(section.substring(5), true, true);
+            }
+            else if (section.startsWith("MONLY:")) {
+                processBandejaList(section.substring(6), true, false);
+            }
+            
+            // Add small delay between processing sections
+            delay(10);
+        }
+        
+        // Give pins time to stabilize before sending OK
+        delay(50);
+        Serial1.println("OK,UPDATE");
+    } else {
+        Serial.println("Unknown command format");
         Serial1.println("ERROR,FORMAT");
-        return;
-    }
-    
-    // Formato esperado: "ON,X" o "OFF,X" donde X es el número de bandeja (0-9)
-    if (comando.length() < 4) {
-        Serial.println("Error: Command too short");
-        Serial1.println("ERROR,LENGTH");
-        return;
-    }
-    
-    String accion = comando.substring(0, comando.indexOf(','));
-    int bandeja = comando.substring(comando.indexOf(',') + 1).toInt();
-    
-    Serial.println("Parsed command - Action: " + accion + ", Bandeja: " + String(bandeja));
-    
-    if (bandeja < 0 || bandeja >= NUM_SENSORES) {
-        Serial.println("Error: Invalid bandeja number");
-        Serial1.println("ERROR," + String(bandeja));
-        return;
-    }
-
-    if (accion == "ON") {
-        bandeja_activa[bandeja] = true;
-        Serial.println("Activating bandeja " + String(bandeja));
-        Serial1.println("OK," + String(bandeja));
-    }
-    else if (accion == "OFF") {
-        bandeja_activa[bandeja] = false;
-        digitalWrite(MOTOR_PINS[bandeja], LOW);
-        digitalWrite(RESISTENCIA_PINS[bandeja], LOW);
-        Serial.println("Deactivating bandeja " + String(bandeja) + " (motor and resistance OFF)");
-        Serial1.println("OK," + String(bandeja));
     }
 }
 
 void loop() {
-    // Procesar comandos entrantes
     if (Serial1.available()) {
         String comando = Serial1.readStringUntil('\n');
-        comando.trim(); // Remove any whitespace or newline characters
+        comando.trim();
         
         Serial.println("\nReceived command from ESP32: " + comando);
         
         if (comando == "SEND") {
             Serial.println("Recognized SEND command");
-            Serial1.println("ACK"); // Send acknowledgment
+            Serial1.println("ACK");
             enviarDatos();
-        } else {
+        } else if (comando.startsWith("UPDATE,")) {
             procesarComando(comando);
+        } else {
+            Serial.println("Unknown command: " + comando);
+            Serial1.println("ERROR,UNKNOWN_COMMAND");
         }
     }
-
-
-    // Control de temperatura para bandejas activas
-    for (int i = 0; i < NUM_SENSORES; i++) {
-        if (bandeja_activa[i]) {
-            float temperatura = dht[i].readTemperature();
-            if (!isnan(temperatura)) {
-                Serial.println("Bandeja " + String(i) + " temperature: " + String(temperatura) + "°C");
-                // Control de temperatura
-                if (temperatura < MIN_TEMP) {
-                    if (digitalRead(RESISTENCIA_PINS[i]) == LOW || digitalRead(MOTOR_PINS[i]) == LOW) {
-                        Serial.println("  Temperature below minimum. Activating heater and motor.");
-                        digitalWrite(RESISTENCIA_PINS[i], HIGH);
-                        digitalWrite(MOTOR_PINS[i], HIGH);
-                    }
-                }
-                else if (temperatura > MAX_TEMP) {
-                    if (digitalRead(RESISTENCIA_PINS[i]) == HIGH || digitalRead(MOTOR_PINS[i]) == HIGH) {
-                        Serial.println("  Temperature above maximum. Deactivating heater and motor.");
-                        digitalWrite(RESISTENCIA_PINS[i], LOW);
-                        digitalWrite(MOTOR_PINS[i], LOW);
-                    }
-                }
-            } else {
-                Serial.println("Error reading temperature from bandeja " + String(i));
-            }
-        }
-    }
-
-    delay(1000); // Esperar un segundo
 }
 
 void enviarDatos() {
-    Serial.println("Collecting sensor data for all bandejas...");
+    Serial.println("Recopilando datos de todos los sensores...");
     String data = "";
     
+    // Give DHT sensors time to stabilize
+    delay(100);
+    
     for (int i = 0; i < NUM_SENSORES; i++) {
+        // Add delay between sensor readings
+        if (i > 0) delay(50);  // 50ms delay between sensors
+        
         float temperatura = dht[i].readTemperature();
+        delay(50);  // Wait between temperature and humidity reading
         float humedad = dht[i].readHumidity();
         
         Serial.println("\nBandeja " + String(i) + ":");
         if (isnan(temperatura) || isnan(humedad)) {
             Serial.println("  Error reading sensor");
-            data += "-1,-1,0,0";
+            data += "-1,-1";
         } else {
-            int resistenciaEstado = digitalRead(RESISTENCIA_PINS[i]);
-            int motorEstado = digitalRead(MOTOR_PINS[i]);
             Serial.println("  Temperature: " + String(temperatura, 1) + "°C");
             Serial.println("  Humidity: " + String(humedad, 1) + "%");
-            Serial.println("  Heater: " + String(resistenciaEstado ? "ON" : "OFF"));
-            Serial.println("  Motor: " + String(motorEstado ? "ON" : "OFF"));
             
             data += String(temperatura, 1) + "," + 
-                   String(humedad, 1) + "," + 
-                   String(resistenciaEstado) + "," + 
-                   String(motorEstado);
+                   String(humedad, 1);
         }
         
         if (i < NUM_SENSORES - 1) data += ",";
     }
     
-    Serial.println("\nSending data to ESP32: " + data);
+    Serial.println("\nEnviando datos al ESP32: " + data);
     Serial1.println(data);
 }

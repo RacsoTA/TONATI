@@ -1,14 +1,20 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, updateDoc, doc } from "firebase/firestore";
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  updateDoc,
+  doc,
+} from "firebase/firestore";
 
 // 🔧 Configura Firebase con tus credenciales
 const firebaseConfig = {
-  apiKey: "AIzaSyBZmFXHmzCY3IPP2a5eSLi142a9NP5GlhI",
-  authDomain: "tonati-1e97b.firebaseapp.com",
-  projectId: "tonati-1e97b",
-  storageBucket: "tonati-1e97b.firebasestorage.app",
-  messagingSenderId: "47138101704",
-  appId: "1:47138101704:web:2daed070e047c0882048fd"
+  apiKey: "AIzaSyDWn_VPseDkNew-fn7btxFqeo_AaFJ4t4Q",
+  authDomain: "apps-design-42.firebaseapp.com",
+  projectId: "apps-design-42",
+  storageBucket: "apps-design-42.firebasestorage.app",
+  messagingSenderId: "617756085262",
+  appId: "1:617756085262:web:0e9d368505d625d559005f",
 };
 
 // 🚀 Inicializa Firebase
@@ -27,15 +33,14 @@ const resetBandejas = async () => {
     }
 
     let actualizadas = 0;
-    
+
     // 🔄 Recorremos todas las bandejas
     for (const docSnap of snapshot.docs) {
       const data = docSnap.data();
-      
 
       // 🔄 Restablecemos la bandeja a disponible
       await updateDoc(doc(db, "bandejas", docSnap.id), {
-        estatus: "disponible"
+        estatus: "disponible",
       });
 
       console.log(`✅ Bandeja ${data.bandeja_ID} restablecida a disponible.`);
@@ -43,7 +48,6 @@ const resetBandejas = async () => {
     }
 
     console.log(`🔄 ${actualizadas} bandejas han sido actualizadas.`);
-    
   } catch (error) {
     console.error("🚨 Error al resetear bandejas:", error);
   }
