@@ -1,15 +1,16 @@
 #include <DHT.h>
 
-#define NUM_SENSORES 10
+#define NUM_SENSORES 11
+#define NUM_RELAY 22
 #define DHT_TYPE DHT11
 
 // Estas variables ya no se usan, se pueden eliminar
 // float MAX_TEMP = 60.0;
 // float MIN_TEMP = 40.0;
 
-int DHT_PINS[NUM_SENSORES] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-int MOTOR_PINS[NUM_SENSORES] = {22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
-int RESISTENCIA_PINS[NUM_SENSORES] = {33, 34, 35, 36, 37, 38, 39, 40, 41, 42};
+int DHT_PINS[NUM_SENSORES] =         {2,   3,  4,  5,  6,  7,  8,  9, 10, 11, 12};
+int MOTOR_PINS[NUM_SENSORES] =       {22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
+int RESISTENCIA_PINS[NUM_SENSORES] = {33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43};
 
 // Estado de las bandejas
 bool bandeja_activa[NUM_SENSORES] = {false};
@@ -18,7 +19,7 @@ DHT dht[NUM_SENSORES] = {
     DHT(2, DHT_TYPE), DHT(3, DHT_TYPE), DHT(4, DHT_TYPE),
     DHT(5, DHT_TYPE), DHT(6, DHT_TYPE), DHT(7, DHT_TYPE),
     DHT(8, DHT_TYPE), DHT(9, DHT_TYPE), DHT(10, DHT_TYPE),
-    DHT(11, DHT_TYPE)
+    DHT(11, DHT_TYPE), DHT(12, DHT_TYPE)
 };
 
 void setup() {
@@ -56,8 +57,8 @@ void processBandejaList(String list, bool motorOn, bool resistenciaOn) {
             list = list.substring(commaIndex + 1);
         }
         
-        int bandeja = bandejaStr.toInt();
-        if (bandeja >= 0 && bandeja < NUM_SENSORES) {
+        int bandeja = bandejaStr.toInt() + 1;
+        if (bandeja > 0 && bandeja <= NUM_SENSORES) {
             digitalWrite(MOTOR_PINS[bandeja], motorOn ? HIGH : LOW);
             digitalWrite(RESISTENCIA_PINS[bandeja], resistenciaOn ? HIGH : LOW);
             bandeja_activa[bandeja] = motorOn || resistenciaOn;
