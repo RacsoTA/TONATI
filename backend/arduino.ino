@@ -57,8 +57,8 @@ void processBandejaList(String list, bool motorOn, bool resistenciaOn) {
             list = list.substring(commaIndex + 1);
         }
         
-        int bandeja = bandejaStr.toInt() + 1;
-        if (bandeja > 0 && bandeja <= NUM_SENSORES) {
+        int bandeja = bandejaStr.toInt() - 1;
+        if (bandeja >= 0 && bandeja < NUM_SENSORES) {
             digitalWrite(MOTOR_PINS[bandeja], motorOn ? HIGH : LOW);
             digitalWrite(RESISTENCIA_PINS[bandeja], resistenciaOn ? HIGH : LOW);
             bandeja_activa[bandeja] = motorOn || resistenciaOn;
@@ -115,8 +115,11 @@ void procesarComando(String comando) {
 }
 
 void loop() {
+
     if (Serial1.available()) {
-        String comando = Serial1.readStringUntil('\n');
+        String comando = Serial1.readStringUntil("\n");
+        Serial.println("Received Command: " + comando);
+
         comando.trim();
         
         Serial.println("\nReceived command from ESP32: " + comando);
@@ -132,6 +135,7 @@ void loop() {
             Serial1.println("ERROR,UNKNOWN_COMMAND");
         }
     }
+    
 }
 
 void enviarDatos() {

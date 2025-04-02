@@ -11,7 +11,27 @@ unsigned long sensorDataTimeout = 0;
 
 // API endpoints
 const char* BASE_URL = "http://192.168.1.183:3000";
-const char* BANDEJAS_STATUS_ENDPOINT = "/bandejas/status"; // Change to your new endpoint
+const char* BANDEJAS_STATUS_ENDPOINT = "/bandejas/esp32"; // Change to your new endpoint
+/*
+{
+    "bandejas_prendidas": [
+        "3"
+    ],
+    "bandejas_apagadas": [
+        "1",
+        "10",
+        "2",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        11
+    ],
+    "prendida_sinResistencia": []
+}
+*/
 const char* UPDATE_ENDPOINT = "/bandejas/updateFromESP32";
 
 // UART with Arduino
@@ -47,6 +67,7 @@ void setup() {
 }
 
 void loop() {
+
     unsigned long currentMillis = millis();
     
     if (!commandInProgress && currentMillis - previousMillis >= interval) {
@@ -74,8 +95,30 @@ void loop() {
 }
 
 void checkBandejas() {
+/*
+{
+    "bandejas_prendidas": [
+        "3"
+    ],
+    "bandejas_apagadas": [
+        "1",
+        "10",
+        "2",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        11
+    ],
+    "prendida_sinResistencia": []
+}
+*/
+
     Serial.println("Checking bandejas status from database...");
     HTTPClient http;
+    // hacemos peticion a bandejas/esp32
     http.begin(String(BASE_URL) + BANDEJAS_STATUS_ENDPOINT);
     
     int httpCode = http.GET();
@@ -97,7 +140,7 @@ void checkBandejas() {
         }
         
         // Create arrays to store bandeja IDs for each category
-        int maxBandejas = 12; // Maximum number of bandejas (0-11)
+        int maxBandejas = 11; // numero maximo de bandejas, desde la 1,2,3,4,5,6,7,8,9,10,11
         int bandejasPrendidas[maxBandejas];
         int bandejasApagadas[maxBandejas];
         int prendidasSinResistencia[maxBandejas];
@@ -207,7 +250,7 @@ void sendCommandsToArduino(int* prendidas, int countPrendidas,
     
     // Add bandejas_apagadas (all OFF)
     command += "OFF:";
-    for (int i = 0; i < countApagadas; i++) {
+    for (int i = 0; i < countApagadas; i++) { 
         if (apagadas[i] != -1) {
             command += String(apagadas[i]);
             if (i < countApagadas - 1) command += ",";
@@ -231,6 +274,7 @@ void sendCommandsToArduino(int* prendidas, int countPrendidas,
             if (i < countSinResistencia - 1) command += ",";
         }
     }
+    
     
     // Send command to Arduino
     Serial.println("Sending command to Arduino: " + command);
@@ -273,7 +317,7 @@ void requestSensorData() {
 }
 
 void processArduinoResponse() {
-    if (Serial2.available()) {
+    if (Serial2.available()) {\
         String response = Serial2.readStringUntil('\n');
         response.trim();
         
@@ -327,6 +371,7 @@ void updateBackend(String sensorData) {
     String requestBody = "{\"data\":\"" + sanitizedData + "\"}";
     Serial.println("Sending request: " + requestBody);
     
+
     int httpCode = http.POST(requestBody);
     Serial.print("Update backend HTTP response: ");
     Serial.println(httpCode);
@@ -344,4 +389,3 @@ void updateBackend(String sensorData) {
     
     http.end();
 }
- 
