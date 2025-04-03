@@ -144,15 +144,18 @@ void checkBandejas() {
         int bandejasPrendidas[maxBandejas];
         int bandejasApagadas[maxBandejas];
         int prendidasSinResistencia[maxBandejas];
+        int prendidasSinMotor[maxBandejas];
         int countPrendidas = 0;
         int countApagadas = 0; 
         int countSinResistencia = 0;
+        int countSinMotor = 0;
         
         // Initialize all arrays with -1 (invalid bandeja ID)
         for (int i = 0; i < maxBandejas; i++) {
             bandejasPrendidas[i] = -1;
             bandejasApagadas[i] = -1;
             prendidasSinResistencia[i] = -1;
+            prendidasSinMotor[i] = -1;
         }
         
         // Parse bandejas_prendidas array
@@ -199,7 +202,12 @@ void checkBandejas() {
                 }
             }
         }
-        
+        if (doc.containsKey("prendida_sinMotor")) {
+            JsonArray sinMotor = doc["prendida_sinMotor"];
+            for (JsonVariant v : sinMotor) {
+                prendidasSinMotor[countSinMotor++] = v.as<int>();
+            }
+        }
         // Log parsed data
         Serial.println("Parsed bandeja status:");
         Serial.print("bandejas_prendidas: ");
@@ -223,10 +231,17 @@ void checkBandejas() {
         }
         Serial.println();
         
+        Serial.print("prendida_sinMotor: ");
+        for (int i = 0; i < countSinMotor; i++) {
+            Serial.print(prendidasSinMotor[i]);
+            Serial.print(", ");
+        }
+        Serial.println();
         // Send commands to Arduino based on bandeja status
         sendCommandsToArduino(bandejasPrendidas, countPrendidas, 
                              bandejasApagadas, countApagadas,
-                             prendidasSinResistencia, countSinResistencia);
+                             prendidasSinResistencia, countSinResistencia,
+                             prendidasSinMotor, countSinMotor);
         
     } else {
         Serial.println("Error getting bandejas status: " + String(httpCode));
@@ -241,7 +256,8 @@ void checkBandejas() {
 
 void sendCommandsToArduino(int* prendidas, int countPrendidas, 
                           int* apagadas, int countApagadas,
-                          int* sinResistencia, int countSinResistencia) {
+                          int* sinResistencia, int countSinResistencia,
+                          int* sinMotor, int countSinMotor) {
     // Construimos un string con todos los comandos para enviar al arduino
     // El formato será: "UPDATE,OFF:<list>,FULL:<list>,MONLY:<list>"
     // Donde cada lista es separada por comas y contiene los IDs de las bandejas
@@ -275,6 +291,14 @@ void sendCommandsToArduino(int* prendidas, int countPrendidas,
         }
     }
     
+    // Add prendida_sinMotor (RESISTENCIA only)
+    command += ";RONLY:";
+    for (int i = 0; i < countSinMotor; i++) {
+        if (sinMotor[i] != -1) {
+            command += String(sinMotor[i]);
+            if (i < countSinMotor - 1) command += ",";
+        }
+    }
     
     // Send command to Arduino
     Serial.println("Sending command to Arduino: " + command);

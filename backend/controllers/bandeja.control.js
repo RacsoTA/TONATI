@@ -385,11 +385,7 @@ export const updateBandejasFromESP32 = async (req, res) => {
         continue;
       }
 
-      // Correct index calculation for data array
-      // For bandeja 1, we want index 0,1
-      // For bandeja 2, we want index 2,3, etc.
       const dataIndex = (id - 1) * 2;
-
       const tempValue = dataArray[dataIndex];
       const humValue = dataArray[dataIndex + 1];
 
@@ -410,33 +406,28 @@ export const updateBandejasFromESP32 = async (req, res) => {
       updatedBandejas.push(id);
     }
 
-    // Process almacen (ID 11) separately
-    // Almacen data is at indices 20,21 (last two values)
-    const almacenBandeja = bandejasMap.get(11);
-    if (almacenBandeja) {
-      const almacenTempValue = dataArray[20]; // Last two values are for almacen
-      const almacenHumValue = dataArray[21];
+    // Handle almacen separately using its own collection
+    const almacenTempValue = dataArray[20];
+    const almacenHumValue = dataArray[21];
 
-      const temperaturaActual =
-        almacenTempValue && !isNaN(almacenTempValue)
-          ? parseFloat(almacenTempValue)
-          : null;
-      const humedadActual =
-        almacenHumValue && !isNaN(almacenHumValue)
-          ? parseFloat(almacenHumValue)
-          : null;
+    const temperaturaActual =
+      almacenTempValue && !isNaN(almacenTempValue)
+        ? parseFloat(almacenTempValue)
+        : null;
+    const humedadActual =
+      almacenHumValue && !isNaN(almacenHumValue)
+        ? parseFloat(almacenHumValue)
+        : null;
 
-      updatePromises.push(
-        updateDoc(almacenBandeja.ref, {
-          temperaturaActual,
-          humedadActual,
-          ultimaActualizacion: serverTimestamp(),
-        })
-      );
-      updatedBandejas.push(11);
-    } else {
-      skippedBandejas.push(11);
-    }
+    // Update almacen document in its separate collection
+    const almacenRef = doc(db, "almacen", "11");
+    updatePromises.push(
+      updateDoc(almacenRef, {
+        temperaturaActual,
+        humedadActual,
+        ultimaActualizacion: serverTimestamp(),
+      })
+    );
 
     if (updatePromises.length === 0) {
       return res.status(400).json({
@@ -446,13 +437,13 @@ export const updateBandejasFromESP32 = async (req, res) => {
 
     await Promise.all(updatePromises);
     res.status(200).json({
-      message: "Bandejas updated successfully",
+      message: "Bandejas and almacen updated successfully",
       updated: updatedBandejas,
       skipped: skippedBandejas,
     });
   } catch (error) {
     res.status(500).json({
-      message: "Error updating bandejas",
+      message: "Error updating bandejas and almacen",
       error: error.message,
     });
   }
@@ -832,30 +823,31 @@ export const updateAlmacenState = async (req, res) => {
 
 export const getBandejasStatusForESP32 = async (req, res) => {
   try {
-    console.log("==== OBTENIENDO ESTADO DE BANDEJAS PARA ESP32 ====");
+    console.log("\n====== INICIANDO getBandejasStatusForESP32 ======");
+    console.log("Timestamp:", new Date().toISOString());
 
     // 1. Obtener todas las bandejas
+    console.log("\n1. Consultando bandejas en Firestore...");
     const bandejasRef = collection(db, "bandejas");
     const bandejasSnapshot = await getDocs(bandejasRef);
 
     if (bandejasSnapshot.empty) {
-      console.log("No hay bandejas en la base de datos");
+      console.log("❌ No se encontraron bandejas en la base de datos");
       return res.status(200).json({
         bandejas_prendidas: [],
         bandejas_apagadas: [],
         prendida_sinResistencia: [],
       });
     }
+    console.log(`✅ Se encontraron ${bandejasSnapshot.size} bandejas`);
 
-    // 2. Obtener parámetros de temperatura/humedad para todos los tipos
-    console.log("Obteniendo parámetros para todos los tipos...");
+    // 2. Obtener parámetros
+    console.log("\n2. Consultando parámetros de temperatura/humedad...");
     const parametrosRef = collection(db, "parametros");
     const parametrosSnapshot = await getDocs(parametrosRef);
 
     if (parametrosSnapshot.empty) {
-      console.log(
-        "ADVERTENCIA: No se encontraron parámetros de temperatura/humedad"
-      );
+      console.log("❌ No se encontraron parámetros configurados");
       return res.status(200).json({
         error: "No se encontraron parámetros",
         bandejas_prendidas: [],
@@ -864,59 +856,54 @@ export const getBandejasStatusForESP32 = async (req, res) => {
       });
     }
 
-    // Crear mapa de parámetros por tipo
+    // Crear mapa de parámetros
     const parametros = {};
     parametrosSnapshot.forEach((doc) => {
       parametros[doc.id] = doc.data();
+      console.log(`✅ Parámetros cargados para tipo ${doc.id}:`, doc.data());
     });
-    console.log("Parámetros cargados:", Object.keys(parametros));
 
     // 3. Preparar listas
+    console.log("\n3. Iniciando procesamiento de bandejas...");
     const bandejas_prendidas = [];
     const bandejas_apagadas = [];
     const prendida_sinResistencia = [];
-    const updatePromises = []; // Array para almacenar promesas de actualización
+    const prendida_sinMotor = [];
+    const updatePromises = [];
 
-    // 4. Calcular tiempo actual para verificar 12 horas
+    // 4. Tiempo actual
     const now = new Date();
+    console.log("Hora actual:", now.toISOString());
 
-    // 5. Procesar cada bandeja
+    // 5. Procesar bandejas
+    console.log("\n5. Analizando cada bandeja...");
     bandejasSnapshot.forEach((doc) => {
       const data = doc.data();
       const id_bandeja = data.id_bandeja;
 
-      // Verificar si la bandeja tiene un id_bandeja válido
+      console.log(`\n📦 Procesando bandeja ${id_bandeja}:`);
+      console.log(`   • ID Documento: ${doc.id}`);
+      console.log(`   • Estatus: ${data.estatus}`);
+      console.log(`   • Temperatura: ${data.temperaturaActual}°C`);
+      console.log(`   • Motor: ${data.estadoMotor ? "ON" : "OFF"}`);
+      console.log(`   • Resistencia: ${data.estadoResistencia ? "ON" : "OFF"}`);
+
       if (id_bandeja === undefined || id_bandeja === null) {
-        console.log(`Bandeja ${doc.id} no tiene id_bandeja válido, omitiendo`);
-        return; // Skip this iteration
+        console.log("   ⚠️ Bandeja sin ID válido, omitiendo...");
+        return;
       }
 
-      console.log(
-        `Procesando bandeja ${id_bandeja} (estatus: ${data.estatus})`
-      );
-
-      // Si la bandeja no está activa, va directamente a apagadas
       if (data.estatus !== "activo") {
-        console.log(
-          `  Bandeja ${id_bandeja} no está activa, añadiendo a bandejas_apagadas`
-        );
+        console.log("   ℹ️ Bandeja inactiva -> añadida a bandejas_apagadas");
         bandejas_apagadas.push(id_bandeja);
-        // No es necesario apagar en la BD si ya no está activa
-        return; // Skip further processing
+        return;
       }
 
-      // Verificar tiempo activo (si tiene horaInicio)
+      // Verificar tiempo activo
       const horaInicio = data.horaInicio?.toDate();
       if (!horaInicio) {
-        console.log(
-          `  Bandeja ${id_bandeja} no tiene horaInicio, añadiendo a bandejas_apagadas`
-        );
+        console.log("   ⚠️ Sin horaInicio -> añadida a bandejas_apagadas");
         bandejas_apagadas.push(id_bandeja);
-
-        // Actualizar en la base de datos para apagar la bandeja
-        console.log(
-          `  Apagando bandeja ${id_bandeja} en la base de datos (sin horaInicio)`
-        );
         updatePromises.push(
           updateDoc(doc.ref, {
             estadoMotor: false,
@@ -927,23 +914,12 @@ export const getBandejasStatusForESP32 = async (req, res) => {
         return;
       }
 
-      // Calcular horas activas
       const horasActiva = (now - horaInicio) / (1000 * 60 * 60);
-      console.log(
-        `  Bandeja ${id_bandeja} activa por ${horasActiva.toFixed(2)} horas`
-      );
+      console.log(`   • Horas activa: ${horasActiva.toFixed(2)}h`);
 
-      // Si ha estado activa por más de 12 horas, va a apagadas
       if (horasActiva >= 12) {
-        console.log(
-          `  Bandeja ${id_bandeja} activa por más de 12 horas, añadiendo a bandejas_apagadas`
-        );
+        console.log("   ⚠️ +12 horas activa -> añadida a bandejas_apagadas");
         bandejas_apagadas.push(id_bandeja);
-
-        // Actualizar en la base de datos para apagar la bandeja por tiempo excedido
-        console.log(
-          `  Apagando bandeja ${id_bandeja} en la base de datos (12h excedidas)`
-        );
         updatePromises.push(
           updateDoc(doc.ref, {
             estadoMotor: false,
@@ -954,16 +930,9 @@ export const getBandejasStatusForESP32 = async (req, res) => {
         return;
       }
 
-      // Verificar tipo y parámetros
-      const tipo = data.tipo || "Fruta"; // Usar Fruta como tipo por defecto
+      const tipo = data.tipo || "Carne";
+      console.log(`   • Tipo de alimento: ${tipo}`);
 
-      if (!parametros[tipo]) {
-        console.log(
-          `  No se encontraron parámetros para el tipo ${tipo}, usando Fruta como predeterminado`
-        );
-      }
-
-      // Obtener parámetros para el tipo (o usar Fruta como fallback)
       const tipoParams = parametros[tipo] ||
         parametros["Fruta"] || {
           minTemp: 20,
@@ -971,12 +940,14 @@ export const getBandejasStatusForESP32 = async (req, res) => {
           minHum: 40,
           maxHum: 60,
         };
+      console.log(
+        `   • Parámetros usados: min=${tipoParams.minTemp}°C, max=${tipoParams.maxTemp}°C`
+      );
 
-      // Verificar temperatura
       const temp = data.temperaturaActual;
       if (temp === undefined || temp === null || isNaN(temp)) {
         console.log(
-          `  Bandeja ${id_bandeja} no tiene temperatura válida, añadiendo a bandejas_prendidas por defecto`
+          "   ⚠️ Temperatura inválida -> añadida a bandejas_prendidas"
         );
         bandejas_prendidas.push(id_bandeja);
         return;
@@ -985,15 +956,10 @@ export const getBandejasStatusForESP32 = async (req, res) => {
       // Lógica de temperatura
       if (temp > tipoParams.maxTemp) {
         console.log(
-          `  Bandeja ${id_bandeja} temperatura (${temp}) sobre máximo (${tipoParams.maxTemp}), añadiendo a prendida_sinResistencia`
+          `   🔥 Temperatura alta (${temp}°C) -> prendida_sinResistencia`
         );
         prendida_sinResistencia.push(id_bandeja);
-
-        // Actualizamos en la base de datos para apagar solo la resistencia
         if (data.estadoResistencia) {
-          console.log(
-            `  Apagando solo resistencia para bandeja ${id_bandeja} en la base de datos`
-          );
           updatePromises.push(
             updateDoc(doc.ref, {
               estadoResistencia: false,
@@ -1002,16 +968,9 @@ export const getBandejasStatusForESP32 = async (req, res) => {
           );
         }
       } else if (temp < tipoParams.minTemp) {
-        console.log(
-          `  Bandeja ${id_bandeja} temperatura (${temp}) bajo mínimo (${tipoParams.minTemp}), añadiendo a bandejas_prendidas`
-        );
+        console.log(`   ❄️ Temperatura baja (${temp}°C) -> bandejas_prendidas`);
         bandejas_prendidas.push(id_bandeja);
-
-        // Aseguramos que la resistencia esté encendida
         if (!data.estadoResistencia) {
-          console.log(
-            `  Encendiendo resistencia para bandeja ${id_bandeja} en la base de datos`
-          );
           updatePromises.push(
             updateDoc(doc.ref, {
               estadoResistencia: true,
@@ -1021,52 +980,103 @@ export const getBandejasStatusForESP32 = async (req, res) => {
         }
       } else {
         console.log(
-          `  Bandeja ${id_bandeja} temperatura (${temp}) dentro de rango, añadiendo a bandejas_prendidas`
+          `   ✅ Temperatura en rango (${temp}°C) -> bandejas_prendidas`
         );
         bandejas_prendidas.push(id_bandeja);
       }
     });
 
-    // 6. Incluir almacén si es necesario (opcional, ajustar según necesidad)
+    // 6. Procesar almacén
+    console.log("\n6. Procesando almacén...");
     try {
       const almacenRef = collection(db, "almacen");
       const almacenSnapshot = await getDocs(almacenRef);
 
       if (!almacenSnapshot.empty) {
-        // Almacén generalmente usa ID 11
-        bandejas_apagadas.push(11);
-        console.log("Añadiendo almacén (ID 11) a bandejas_apagadas");
+        almacenSnapshot.forEach((doc) => {
+          const docData = doc.data();
+          console.log("   • Almacén encontrado:", doc.id);
+          console.log("   • Estado motor:", docData.estadoMotor ? "ON" : "OFF");
+
+          if (doc.id === "11") {
+            if (docData.estadoMotor) {
+              if (docData.estadoResistencia) {
+                console.log("   ✅ Almacén añadido a prendida_conResistencia");
+                bandejas_prendidas.push(doc.id);
+              } else {
+                console.log("   ✅ Almacén añadido a bandejas_prendidas");
+                prendida_sinResistencia.push(doc.id);
+              }
+            } else {
+              if (docData.estadoResistencia) {
+                console.log("   ✅ Almacén añadido a prendida_sinMotor");
+                prendida_sinMotor.push(doc.id);
+              } else {
+                console.log("   ✅ Almacén añadido a bandejas_apagadas");
+                bandejas_apagadas.push(doc.id);
+              }
+            }
+          }
+        });
+      } else {
+        console.log("   ⚠️ No se encontró documento de almacén");
       }
     } catch (error) {
-      console.log("Error al procesar almacén:", error.message);
+      console.log("   ❌ Error procesando almacén:", error.message);
     }
 
-    // 7. Ejecutar todas las actualizaciones de la base de datos
+    // 7. Ejecutar actualizaciones
     if (updatePromises.length > 0) {
       console.log(
-        `Ejecutando ${updatePromises.length} actualizaciones en la base de datos`
+        `\n7. Ejecutando ${updatePromises.length} actualizaciones en la base de datos...`
       );
       await Promise.all(updatePromises);
-      console.log("Actualizaciones completadas con éxito");
+      console.log("   ✅ Actualizaciones completadas");
     }
 
-    // 8. Devolver resultado
-    console.log("Resultado final:");
-    console.log(`  bandejas_prendidas: ${bandejas_prendidas.join(", ")}`);
-    console.log(`  bandejas_apagadas: ${bandejas_apagadas.join(", ")}`);
+    // 8. Resultado final
+    console.log("\n====== RESULTADO FINAL ======");
     console.log(
-      `  prendida_sinResistencia: ${prendida_sinResistencia.join(", ")}`
+      "📊 Bandejas prendidas:",
+      bandejas_prendidas.join(", ") || "ninguna"
+    );
+    console.log(
+      "📊 Bandejas apagadas:",
+      bandejas_apagadas.join(", ") || "ninguna"
+    );
+    console.log(
+      "📊 Prendidas sin resistencia:",
+      prendida_sinResistencia.join(", ") || "ninguna"
     );
 
     return res.status(200).json({
       bandejas_prendidas,
       bandejas_apagadas,
       prendida_sinResistencia,
+      prendida_sinMotor,
     });
   } catch (error) {
-    console.error("Error en getBandejasStatusForESP32:", error);
+    console.error("❌ ERROR CRÍTICO en getBandejasStatusForESP32:", error);
     return res.status(500).json({ message: error.message });
   }
 };
 
-// export const bandeja
+export const switchAlmacen = async (req, res) => {
+  try {
+    const almacen = doc(db, "almacen", "11");
+    console.log("Updating almacen document:", almacen.id);
+
+    const { estadoMotor, estadoResistencia } = req.body;
+
+    await updateDoc(almacen, {
+      estadoMotor: estadoMotor,
+      estadoResistencia: estadoResistencia,
+      ultimaActualizacion: serverTimestamp(),
+    });
+
+    return res.status(200).json({ message: "Almacen actualizado" });
+  } catch (error) {
+    console.error("Error updating almacen state:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};

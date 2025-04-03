@@ -100,6 +100,9 @@ void procesarComando(String comando) {
             else if (section.startsWith("MONLY:")) {
                 processBandejaList(section.substring(6), true, false);
             }
+            else if (section.startsWith("RONLY:")) {
+                processBandejaList(section.substring(6), false, true);
+            }
             
             // Add small delay between processing sections
             delay(10);

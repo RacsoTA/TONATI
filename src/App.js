@@ -54,7 +54,10 @@ function App() {
       const allBandejas = response.data;
 
       // Update each bandeja
-      const updatePromises = allBandejas.map((bandeja) =>
+      const regularBandejas = allBandejas.filter(
+        (bandeja) => bandeja.id_bandeja !== 11
+      );
+      const updatePromises = regularBandejas.map((bandeja) =>
         api.put(`/bandejas/update/${bandeja.id}`, {
           motor: 0,
           resistencia: 0,
@@ -219,7 +222,7 @@ function App() {
     newEstadoResistencia
   ) => {
     try {
-      await api.put("/almacen/state", {
+      await api.post("/almacen/state", {
         estadoMotor: newEstadoMotor,
         estadoResistencia: newEstadoResistencia,
       });

@@ -15,13 +15,14 @@ import {
   getBandejasStatusForESP32,
   getAlmacen,
   updateAlmacenState,
+  switchAlmacen,
 } from "../controllers/bandeja.control.js";
 
 const router = express.Router();
 
 // Almacén routes
 router.get("/almacen", getAlmacen);
-router.put("/almacen/state", updateAlmacenState);
+router.post("/almacen/state", switchAlmacen);
 
 // Bandejas routes
 router.get("/bandejas/", getBandejas);
