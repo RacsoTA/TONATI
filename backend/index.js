@@ -10,7 +10,18 @@ import parametrosRoute from "./routes/parametros.routes.js";
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3002",
+      "http://192.168.1.183:3002",
+      "http://192.168.1.183:3001",
+      "http://localhost:3001",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Rutas
